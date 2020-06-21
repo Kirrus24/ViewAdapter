@@ -1,0 +1,157 @@
+package com.example.laboratornaya_3;
+
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.Toolbar;
+import androidx.viewpager.widget.ViewPager;
+
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import com.example.laboratornaya_3.dummy.DummyContent;
+
+import java.util.List;
+
+
+public class ItemListActivity extends AppCompatActivity
+        implements FragmentDelete.OnFragmentInteractionListener,
+        FragmentShow.OnFragmentInteractionListener, FragmentInsert.OnFragmentInteractionListener, FragmentUpdate.OnFragmentInteractionListener, ViewPager.OnPageChangeListener {
+
+
+    private ViewPager pager;
+    private boolean mTwoPane;
+    private NotesManager notesManager;
+    private NotesPagerAdapter pagerAdapter;
+
+            @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_item_list);
+
+        this.notesManager = new NotesManager(new DBHelper(this)) ;
+
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        toolbar.setTitle("Записки");
+
+        if (findViewById(R.id.item_detail_container) != null) {
+
+            mTwoPane = true;
+        }
+
+        View recyclerView = findViewById(R.id.item_list);
+        if (recyclerView != null) {
+            setupRecyclerView((RecyclerView) recyclerView);
+        }
+
+        if (mTwoPane) {
+        } else {
+            pager = (ViewPager) findViewById(R.id.pager);
+            pager.addOnPageChangeListener(this);
+            pagerAdapter = new NotesPagerAdapter(getSupportFragmentManager(), this.notesManager);
+            pager.setAdapter(pagerAdapter);
+        }
+    }
+
+    private void setupRecyclerView(@NonNull RecyclerView recyclerView) {
+        recyclerView.setAdapter(new SimpleItemRecyclerViewAdapter(this, DummyContent.ITEMS, mTwoPane));
+    }
+    @Override
+    public void onFragmentInteraction(Uri uri) {}
+
+    @Override
+    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+
+        ((FragmentShow)pagerAdapter.getItem(0)).refresh();
+    }
+
+    @Override
+    public void onPageSelected(int position) {
+
+        ((FragmentShow)pagerAdapter.getItem(0)).refresh();
+    }
+
+    @Override
+    public void onPageScrollStateChanged(int state) {
+
+        ((FragmentShow)pagerAdapter.getItem(0)).refresh();
+
+    }
+
+    public static class SimpleItemRecyclerViewAdapter
+            extends RecyclerView.Adapter<SimpleItemRecyclerViewAdapter.ViewHolder> {
+
+        private final ItemListActivity mParentActivity;
+        private final List<DummyContent.DummyItem> mValues;
+        private final boolean mTwoPane;
+        private final View.OnClickListener mOnClickListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                DummyContent.DummyItem item = (DummyContent.DummyItem) view.getTag();
+                if (mTwoPane) {
+                    Bundle arguments = new Bundle();
+                    arguments.putString(ItemDetailFragment.ARG_ITEM_ID, item.id);
+                    ItemDetailFragment fragment = new ItemDetailFragment();
+                    fragment.setArguments(arguments);
+                    mParentActivity.getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.item_detail_container, fragment)
+                            .commit();
+                } else {
+                    Context context = view.getContext();
+                    Intent intent = new Intent(context, ItemDetailActivity.class);
+                    intent.putExtra(ItemDetailFragment.ARG_ITEM_ID, item.id);
+
+                    context.startActivity(intent);
+                }
+            }
+        };
+
+        SimpleItemRecyclerViewAdapter(ItemListActivity parent,
+                                      List<DummyContent.DummyItem> items,
+                                      boolean twoPane) {
+            mValues = items;
+            mParentActivity = parent;
+            mTwoPane = twoPane;
+        }
+
+        @Override
+        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_list_content, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(final ViewHolder holder, int position) {
+            holder.mIdView.setText(mValues.get(position).id);
+            holder.mContentView.setText(mValues.get(position).content);
+
+            holder.itemView.setTag(mValues.get(position));
+            holder.itemView.setOnClickListener(mOnClickListener);
+        }
+
+        @Override
+        public int getItemCount() {
+            return mValues.size();
+        }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            final TextView mIdView;
+            final TextView mContentView;
+
+            ViewHolder(View view) {
+                super(view);
+                mIdView = (TextView) view.findViewById(R.id.id_text);
+                mContentView = (TextView) view.findViewById(R.id.content);
+            }
+        }
+    }
+}
